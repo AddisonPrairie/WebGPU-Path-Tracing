@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="de">
+    <head>
+        <title>WebGPU</title>
+        <meta charset="utf-8" />
+        <script src="main.js"></script>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300&display=swap" rel="stylesheet">        <style>
+            :root {
+                --canvas-width: 1px;
+                --canvas-height: 1px;
+            }
+            html {
+                width: 100%; height: 100%;
+            }
+            body {
+                padding: 0px; margin: 0px;
+                width: 100%; height: 100%;
+                background-color: #1f1f1f;
+            }
+            button {
+                font-family: 'Roboto', sans-serif;
+                border: none;
+                background: none;
+                margin: 5px 0px;
+                text-align: left;
+                color: #cccccc;
+            }
+            #bottom-layer {
+                position: absolute;
+                width: 100%;
+                height: 100%;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+            #render-result {
+                width: var(--canvas-width);
+                height: var(--canvas-height);
+            }
+            #menu-layer {
+                position: absolute;
+                z-index: 1;
+                width: 100%;
+                height: 100%;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+            #menu-holder {
+                width: var(--canvas-width);
+                height: var(--canvas-height);
+                position: relative;
+            }
+            #left-menu {
+                border: 1px solid rgb(80, 80, 80);
+                margin: 5px;
+                border-radius: 5px;
+                background-color: rgba(60, 60, 60, 1);
+                position: absolute;
+                left: 0px;
+                top: 0px;
+                width: 200px;
+                max-height: calc(100% - 10px);
+                display: flex;
+                flex-direction: column;
+            }
+            .expandable-head {
+                display: flex;
+                width: 100%;
+                align-items: center;
+                margin: 3px 0px;
+            }
+            .expandable-arrow-container {
+                width: 10px;
+                margin-right: 1px;
+            }
+            .expandable-arrow {
+                width: 1px;
+                height: 0px;
+                border-top: 4px solid transparent;
+                border-bottom: 4px solid transparent;
+                border-left: 5px solid #cccccc;
+            }
+            #expanded {
+                transform: rotate(90deg) translate(1px);
+            }
+            .expandable-content {
+                margin: 0px;
+                padding-left: 20px;
+                background-color: rgb(50, 50, 50);
+                width: calc(100% - 20px);
+            }
+            .ui-button:hover {
+                color: #ffffff;
+            }
+            #right-menu {
+                position: absolute;
+                float: right;
+                right: 5px;
+                top: 5px;
+                width: 150px;
+                display: flex;
+                flex-direction: column;
+                align-items: flex-end;
+            }
+            .window {
+                pointer-events: auto;
+                position: absolute;
+                overflow: auto;
+                resize: vertical;
+                background-color: green;
+                width: 200px; height: 200px;
+                border-radius: 5px;
+                border: 1px solid rgb(80, 80, 80);
+                background: rgba(50, 50, 50, .5);
+                backdrop-filter: blur(3px);
+                min-width: 200px;
+                display:flex;
+                flex-direction: column;
+            }
+            .window-bar {
+                margin: 0px;
+                width: 100%; height: 20px;
+                background-color: rgb(60, 60, 60);
+                display: flex;
+                align-items: center;
+            }
+            .window-content {
+                width: 100%; flex-grow: 1;
+                overflow-x: none;
+                overflow-y: scroll;
+                scrollbar-width: 1px;
+            }
+            .window-content-inner {
+                margin: 5px;
+                margin-right: 0px;
+                border-radius: 5px;
+                background-color: rgb(60, 60, 60);
+            }
+            /* width */
+            ::-webkit-scrollbar {
+                width: 5px;
+            }
+
+            /* Track */
+            ::-webkit-scrollbar-track {
+                background: none;
+            }
+
+            /* Handle */
+            ::-webkit-scrollbar-thumb {
+                background: #888;
+                width: 4px;
+            }
+
+            /* Handle on hover */
+            ::-webkit-scrollbar-thumb:hover {
+                background: #555;
+            }
+            .editable-container {
+                display: flex;
+                align-items: center;
+                width: 170px;
+                height: 18px;
+            }
+            .editable-name {
+                font-family: 'Roboto', sans-serif; 
+                font-size: 13.333px; 
+                color: #cccccc; 
+                cursor: default;
+                width: 100px;
+                text-align: right;
+                margin: 0px;
+                margin-right: 5px;
+            }
+            .editable-input {
+                width: 50px;
+                margin: 0px;
+                margin-left: 5px;
+                border: none;
+                padding: none;
+                border-radius: 2px;
+                background-color: rgb(60, 60, 60);
+                color: #cccccc;
+            }
+            .editable-other {
+                width: 55px;
+                margin: 0px;
+                margin-left: 5px;
+                border: none;
+                padding: none;
+                border-radius: 2px;
+                background-color: rgb(60, 60, 60);
+                color: #cccccc;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="bottom-layer">
+            <canvas id="render-result" 
+            width = "1000" height = "1000"
+            ></canvas>        
+        </div>
+        <div id="menu-layer">
+            <div id="menu-holder">
+                <div id="left-menu">
+                    <div class="expandable">
+                        <button class="expandable-head">
+                            <div class="expandable-arrow-container">
+                                <div class="expandable-arrow">
+                                </div>
+                            </div>
+                            Windows
+                        </button>
+                        <div style="display: none;" class="expandable-content">
+                            <div style="display: flex; flex-direction: column;">
+                                <button class="ui-button" style="margin: 0px; margin-bottom: 5px; margin-top: 3px" id="objects-button">Objects</button>
+                                <button class="ui-button" style="margin: 0px; margin-bottom: 5px;" id="camera-and-film-button">Camera & Film</button>
+                                <button class="ui-button" style="margin: 0px; margin-bottom: 5px;" id="mesh-button">Meshes</button>
+                                <button class="ui-button" style="margin: 0px; margin-bottom: 3px;" id="material-button">Materials</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="expandable">
+                        <button class="expandable-head">
+                            <div class="expandable-arrow-container">
+                                <div class="expandable-arrow">
+                                </div>
+                            </div>
+                            Common
+                        </button>
+                        <div style="display: none; border-bottom-left-radius: 5px; border-bottom-right-radius: 5px;" class="expandable-content" id="last">
+                            <div style="display: flex; flex-direction: column;">
+                                <button class="ui-button" style="margin: 0px; margin-bottom: 5px; margin-top: 3px;" id="download-image">Save Image</button>
+                                <button class="ui-button" style="margin: 0px; margin-bottom: 5px; margin-top: 0px;" id="reset">Reset Render</button>
+                                <button class="ui-button" style="margin: 0px; margin-bottom: 5px;" id="pause">Pause</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="right-menu">
+                    <div style="width: 100px; height: 100px;">
+                        <div id="orientation-editor" style="width: 100px; height: 100px; border-radius: 50px; background-color: rgba(180, 180, 180, .3); position: relative; z-index: 1; font-family: monospace; font-size: 16px; color: #101010; cursor: default;">
+                            <div id="x" style="width: 20px; height: 20px; border-radius: 10px; background-color: rgb(225, 50, 50); position: absolute; text-align: center;">X</div>
+                            <div id="y" style="width: 20px; height: 20px; border-radius: 10px; background-color: rgb(50, 225, 50); position: absolute; text-align: center;">Y</div>
+                            <div id="z" style="width: 20px; height: 20px; border-radius: 10px; background-color: rgb(50, 50, 225); position: absolute; text-align: center;">Z</div>
+                            <div id="xneg" style="width: 20px; height: 20px; border-radius: 10px; background-color: rgb(169, 38, 38); position: absolute; text-align: center;"></div>
+                            <div id="yneg" style="width: 20px; height: 20px; border-radius: 10px; background-color: rgb(38, 169, 38); position: absolute; text-align: center;"></div>
+                            <div id="zneg" style="width: 20px; height: 20px; border-radius: 10px; background-color: rgb(38, 38, 169); position: absolute; text-align: center;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="windows-layer" style="width: 100%; height: 100%; position: absolute; z-index: 2; pointer-events: none;">
+            <div class="window" id="camera-and-film" style="z-index: 1; left: 100px; top: 100px; display: none;">
+                <div class="window-bar">
+                    <p style="margin: 0px; margin-left: 5px; font-family: 'Roboto', sans-serif; font-size: 13.333px; color: #cccccc; cursor: default;">Camera & Film</p>
+                    <div style="flex-grow: 1;"></div>
+                    <button>Close</button>
+                </div>
+                <div class="window-content">
+                    <div class="window-content-inner">
+                        <div class="expandable">
+                            <button class="expandable-head">
+                                <div class="expandable-arrow-container">
+                                    <div class="expandable-arrow">
+                                    </div>
+                                </div>
+                                Depth of Field
+                            </button>
+                            <div style="display: none;" class="expandable-content">
+                                <div style="display: flex; flex-direction: column;">
+                                    <div class="editable-container" style="margin: 5px 0px 5px">
+                                        <div class="editable-name">
+                                            focal distance
+                                        </div>
+                                        <input id="focal" value="1" min=".1" step=".5" type="number" class="editable-input">
+                                    </div>
+                                    <div class="editable-container" style="margin: 0px 0px 5px;">
+                                        <div class="editable-name">
+                                            aperture
+                                        </div>
+                                        <input id="aperture" value="0" min="0" max="1000" step=".2" type="number" class="editable-input">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="expandable">
+                            <button class="expandable-head">
+                                <div class="expandable-arrow-container">
+                                    <div class="expandable-arrow">
+                                    </div>
+                                </div>
+                                Camera Position
+                            </button>
+                            <div style="display: none;" class="expandable-content">
+                                <div style="display: flex; flex-direction: column;">
+                                    <div class="editable-container" style="margin: 5px 0px 5px">
+                                        <div class="editable-name">
+                                            offset x
+                                        </div>
+                                        <input id="camOffsetX" value="0" step=".5" type="number" class="editable-input">
+                                    </div>
+                                    <div class="editable-container" style="margin: 0px 0px 5px;">
+                                        <div class="editable-name">
+                                            offset y
+                                        </div>
+                                        <input id="camOffsetY" value="0" step=".5" type="number" class="editable-input">
+                                    </div>
+                                    <div class="editable-container" style="margin: 0px 0px 5px;">
+                                        <div class="editable-name">
+                                            offset z
+                                        </div>
+                                        <input id="camOffsetZ" value="0" step=".5" type="number" class="editable-input">
+                                    </div>
+                                    <div class="editable-container" style="margin: 0px 0px 5px;">
+                                        <div class="editable-name">
+                                            distance
+                                        </div>
+                                        <input id="camDistance" value="4.5" min="0" step=".5" type="number" class="editable-input">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="expandable">
+                            <button class="expandable-head">
+                                <div class="expandable-arrow-container">
+                                    <div class="expandable-arrow">
+                                    </div>
+                                </div>
+                                Render size
+                            </button>
+                            <div style="display: none;" class="expandable-content">
+                                <div style="display: flex; flex-direction: column;">
+                                    <div class="editable-container" style="margin: 5px 0px 5px">
+                                        <div class="editable-name">
+                                            horizontal
+                                        </div>
+                                        <input id="renderX" value="1000" min="100" max="2000" step="1" type="number" class="editable-input">
+                                    </div>
+                                    <div class="editable-container" style="margin: 0px 0px 5px;">
+                                        <div class="editable-name">
+                                            vertical
+                                        </div>
+                                        <input id="renderY" value="1000" min="100" max="2000" step="1" type="number" class="editable-input">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="window" id="objects" style="z-index: 1; left: 100px; top: 100px; display: none;">
+                <div class="window-bar">
+                    <p style="margin: 0px; margin-left: 5px; font-family: 'Roboto', sans-serif; font-size: 13.333px; color: #cccccc; cursor: default;">Objects</p>
+                    <div style="flex-grow: 1;"></div>
+                    <button>Close</button>
+                </div>
+                <div class="window-content">
+                    <div class="window-content-inner" id="objects-list">
+                        <div class="expandable">
+                            <button class="expandable-head">
+                                <div class="expandable-arrow-container">
+                                    <div class="expandable-arrow">
+                                    </div>
+                                </div>
+                                New Object
+                            </button>
+                            <div style="display: none;" class="expandable-content">
+                                <div style="display: flex; flex-direction: column;">
+                                    <div class="editable-container" style="margin: 5px 0px 5px;">
+                                        <div class="editable-name">
+                                            new object
+                                        </div>
+                                        <button id="new-object" class="editable-other" style="display: flex; align-items: center; justify-content: center;">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-plus"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="window" id="mesh" style="z-index: 1; left: 100px; top: 100px; display: none;">
+                <div class="window-bar">
+                    <p style="margin: 0px; margin-left: 5px; font-family: 'Roboto', sans-serif; font-size: 13.333px; color: #cccccc; cursor: default;">Meshes</p>
+                    <div style="flex-grow: 1;"></div>
+                    <button>Close</button>
+                </div>
+                <div class="window-content">
+                    <div class="window-content-inner" id="meshes-list">
+                        <div class="expandable">
+                            <button class="expandable-head">
+                                <div class="expandable-arrow-container">
+                                    <div class="expandable-arrow">
+                                    </div>
+                                </div>
+                                New Mesh
+                            </button>
+                            <div style="display: none;" class="expandable-content">
+                                <div style="display: flex; flex-direction: column;">
+                                    <div class="editable-container" style="margin: 5px 0px 5px;">
+                                        <div class="editable-name">
+                                            upload mesh
+                                        </div>
+                                        <button id="upload-mesh" class="editable-other" style="display: flex; align-items: center; justify-content: center;">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-arrow-up"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="expandable">
+                            <button class="expandable-head">
+                                <div class="expandable-arrow-container">
+                                    <div class="expandable-arrow">
+                                    </div>
+                                </div>
+                                floor
+                            </button>
+                            <div style="display: none;" class="expandable-content">
+                                <div style="display: flex; flex-direction: column;">
+                                    <div class="editable-container" style="margin: 5px 0px 5px;">
+                                        <div class="editable-name">
+                                            index
+                                        </div>
+                                        <button class="editable-other" style="overflow-x: none;">
+                                            0
+                                        </button>
+                                    </div>
+                                    <div class="editable-container" style="margin: 0px 0px 5px;">
+                                        <div class="editable-name">
+                                            triangles
+                                        </div>
+                                        <button class="editable-other">
+                                            2
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="window" id="material" style="z-index: 1; left: 100px; top: 100px; display: none;">
+                <div class="window-bar">
+                    <p style="margin: 0px; margin-left: 5px; font-family: 'Roboto', sans-serif; font-size: 13.333px; color: #cccccc; cursor: default;">Materials</p>
+                    <div style="flex-grow: 1;"></div>
+                    <button>Close</button>
+                </div>
+                <div class="window-content">
+                    <div class="window-content-inner" id="materials-list">
+                        <div class="expandable">
+                            <button class="expandable-head">
+                                <div class="expandable-arrow-container">
+                                    <div class="expandable-arrow">
+                                    </div>
+                                </div>
+                                New Material
+                            </button>
+                            <div style="display: none;" class="expandable-content">
+                                <div style="display: flex; flex-direction: column;">
+                                    <div class="editable-container" style="margin: 5px 0px 5px;">
+                                        <div class="editable-name">
+                                            new material
+                                        </div>
+                                        <button id="new-material" class="editable-other" style="display: flex; align-items: center; justify-content: center;">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-plus"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

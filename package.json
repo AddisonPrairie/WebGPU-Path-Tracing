@@ -1,0 +1,30 @@
+{
+  "name": "wgpupathtracing",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "webpack": "webpack",
+    "compileHDR": "em++ -s -O3 -s WASM=1 -s \"EXPORTED_RUNTIME_METHODS=[\"cwrap\", \"ccall\"]\" -s ALLOW_MEMORY_GROWTH=1 -s MODULARIZE=1 -s \"EXPORT_NAME=\"hdrToFloats\"\" -s \"ENVIRONMENT='web'\" -s \"EXPORTED_FUNCTIONS=[\"_hdrToFloats\", \"_malloc\"]\" -o src/wasm/hdrToFloats.js src/C/hdrToFloats.cc",
+    "compileBVH": "em++ -s -O3 -s WASM=1 -s \"EXPORTED_RUNTIME_METHODS=[\"cwrap\", \"ccall\"]\" -s ALLOW_MEMORY_GROWTH=1 -s MODULARIZE=1 -s \"EXPORT_NAME=\"bvhbuild\"\" -s \"ENVIRONMENT='web'\" -s \"EXPORTED_FUNCTIONS=[\"_bvhbuild\", \"_malloc\"]\" -o src/wasm/bvhbuild.js src/C/bvhbuild.cc",
+    "build": "npm run compileBVH && npm run webpack",
+    "watch:build": "emsdk_env.bat && onchange \"src\\js\" \"src\\shaders\" \"src\\scss\" \"src\\C\" -- npm run build"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@gltf-transform/core": "^3.4.2",
+    "exports-loader": "^4.0.0",
+    "file-loader": "^6.2.0",
+    "onchange": "^7.1.0",
+    "raw-loader": "^4.0.2",
+    "source-map-loader": "^4.0.1",
+    "webpack": "^5.86.0"
+  },
+  "browser": {
+    "fs": false
+  },
+  "devDependencies": {
+    "webpack-cli": "^5.1.4"
+  }
+}
